@@ -6,6 +6,8 @@ import os
 import time
 import threading
 
+from trello import fetch_cards
+
 CONFIG_FILE = 'git_helper_config.json'
 EMOJI_FILE = 'custom_emojis.json'
 WATCH_INTERVAL = 1  # in seconds
@@ -154,24 +156,69 @@ def safe_input(prompt):
 def main():
     project_name = load_project_name() or set_project_name()
     print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
-
+    
     while True:
         print("\n\033[1;34mThe Ultimate Git Script:\033[0m")
         print("1. Add, Commit and Push")
         print("2. Set Project Name")
-        print("3. Exit")
+        print("3. Select Trello Card and Create Branch")
+        print("4. Exit")
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
-
+        
         if choice == '1':
             add_commit_push(project_name)
         elif choice == '2':
             project_name = set_project_name()
             print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
         elif choice == '3':
+            select_trello_card_and_create_branch(project_name)
+        elif choice == '4':
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
             print("\033[1;31mInvalid option. Please try again.\033[0m")
+
+
+def select_trello_card_and_create_branch(project_name):
+    try:
+        cards = fetch_cards()
+        
+        print("\n\033[1;34mBacklog Cards:\033[0m")
+        for idx, card in enumerate(cards, start=1):
+            print(f"{idx}. {card['name']}")
+        
+        choice = safe_input("\033[1;34mChoose a card number to create a feature branch (or press enter to cancel):\033[0m ").strip()
+        
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(cards):
+                card_name = cards[idx]['name']
+                branch_name = create_branch_name(project_name, card_name)
+                create_git_branch(branch_name)
+            else:
+                print("\033[1;31mInvalid card number.\033[0m")
+        elif choice == '':
+            return
+        else:
+            print("\033[1;31mInvalid input.\033[0m")
+    
+    except Exception as e:
+        print(f"\033[1;31mAn error occurred: {e}\033[0m")
+
+
+def create_branch_name(project_name, card_name):
+    card_number = card_name.split(':')[0].strip()
+    card_name_slug = '-'.join(card_name.split(':')[1].strip().split()).lower()
+    return f"{project_name}-{card_number}-{card_name_slug}"
+
+
+def create_git_branch(branch_name):
+    try:
+        subprocess.run(['git', 'checkout', '-b', branch_name], check=True)
+        subprocess.run(['git', 'push', '--set-upstream', 'origin', branch_name], check=True)
+        print(f"\033[1;32mCreated branch '{branch_name}' and pushed to remote successfully.\033[0m")
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
 
 if __name__ == "__main__":
