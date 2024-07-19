@@ -6,7 +6,7 @@ import os
 import time
 import threading
 
-from trello import fetch_cards
+from trello import fetch_cards, get_doing_list_id, move_card_to_list
 
 CONFIG_FILE = 'git_helper_config.json'
 EMOJI_FILE = 'custom_emojis.json'
@@ -192,9 +192,19 @@ def select_trello_card_and_create_branch(project_name):
         if choice.isdigit():
             idx = int(choice) - 1
             if 0 <= idx < len(cards):
-                card_name = cards[idx]['name']
+                card = cards[idx]
+                card_name = card['name']
+                card_id = card['id']
                 branch_name = create_branch_name(project_name, card_name)
                 create_git_branch(branch_name)
+                
+                import secrets
+                board_id = secrets.BOARD_ID
+                api_key = secrets.API_KEY
+                token = secrets.TOKEN
+                doing_list_id = get_doing_list_id(board_id, api_key, token)
+                move_card_to_list(card_id, doing_list_id, api_key, token)
+                print(f"\033[1;32mMoved card '{card_name}' to the 'DOING' list.\033[0m")
             else:
                 print("\033[1;31mInvalid card number.\033[0m")
         elif choice == '':
