@@ -47,6 +47,14 @@ def generate_random_string(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
+def get_current_branch():
+    try:
+        result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return "unknown"
+
+
 def get_last_commit_hash():
     try:
         result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True, check=True)
@@ -155,9 +163,12 @@ def safe_input(prompt):
 
 def main():
     project_name = load_project_name() or set_project_name()
-    print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
     
     while True:
+        current_branch = get_current_branch()
+        print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
+        print(f"\033[1;36mCurrent Branch: {current_branch}\033[0m")
+        
         print("\n\033[1;34mThe Ultimate Git Script:\033[0m")
         print("1. Add, Commit and Push")
         print("2. Set Project Name")
