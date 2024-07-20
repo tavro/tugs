@@ -6,7 +6,7 @@ import os
 import time
 import threading
 
-from trello import LIST_NAME, fetch_cards, get_doing_list_id, get_lists, move_card_to_list, create_card
+from trello import LIST_NAME, fetch_cards, get_doing_list_id, get_done_list_id, get_lists, move_card_to_list, create_card
 
 CONFIG_FILE = 'git_helper_config.json'
 EMOJI_FILE = 'custom_emojis.json'
@@ -174,7 +174,8 @@ def main():
         print("2. Set Project Name")
         print("3. Select Trello Card and Create Branch")
         print("4. Create a New Trello Ticket")
-        print("5. Exit")
+        print("5. Merge Branch into Main and Move Trello Card to DONE")
+        print("6. Exit")
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
         
         if choice == '1':
@@ -187,6 +188,8 @@ def main():
         elif choice == '4':
             create_trello_ticket()
         elif choice == '5':
+            merge_branch_to_main(project_name)
+        elif choice == '6':
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
@@ -244,6 +247,7 @@ def create_git_branch(branch_name):
     except subprocess.CalledProcessError as e:
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
+
 def create_trello_ticket():
     try:
         import secrets
@@ -269,6 +273,41 @@ def create_trello_ticket():
         print(f"\033[1;32mTicket '{ticket_name}' created successfully in the TODO list.\033[0m")
     except Exception as e:
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
+
+
+def merge_branch_to_main(project_name):
+    try:
+        current_branch = get_current_branch()
+        if current_branch == 'main':
+            print("\033[1;31mYou are already on the main branch.\033[0m")
+            return
+
+        subprocess.run(['git', 'checkout', 'main'], check=True)
+        subprocess.run(['git', 'merge', current_branch], check=True)
+
+        add_commit_push(project_name)
+
+        import secrets
+        board_id = secrets.BOARD_ID
+        api_key = secrets.API_KEY
+        token = secrets.TOKEN
+
+        cards = fetch_cards()
+        card = next((card for card in cards if create_branch_name(project_name, card['name']) == current_branch), None)
+
+        if card:
+            done_list_id = get_done_list_id(board_id, api_key, token)
+            move_card_to_list(card['id'], done_list_id, api_key, token)
+            print(f"\033[1;32mMoved card '{card['name']}' to the 'DONE' list.\033[0m")
+        else:
+            print("\033[1;31mNo matching card found for the current branch.\033[0m")
+
+        print(f"\033[1;32mBranch '{current_branch}' merged into 'main' and pushed successfully.\033[0m")
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31mAn error occurred during the merge process: {e}\033[0m")
+    except Exception as e:
+        print(f"\033[1;31mAn unexpected error occurred: {e}\033[0m")
+
 
 
 if __name__ == "__main__":

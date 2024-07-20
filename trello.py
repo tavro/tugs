@@ -81,3 +81,18 @@ def create_card(list_id, name, desc, api_key, token):
     response = requests.post(url, params=params)
     response.raise_for_status()
     return response.json()
+
+
+def get_done_list_id(board_id, api_key, token):
+    url = f'https://api.trello.com/1/boards/{board_id}/lists'
+    params = {
+        'key': api_key,
+        'token': token
+    }
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    lists = response.json()
+    done_list = next((lst for lst in lists if lst['name'].upper() == 'DONE'), None)
+    if not done_list:
+        raise ValueError("No list named 'DONE' found on board.")
+    return done_list['id']
