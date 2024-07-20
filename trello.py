@@ -67,3 +67,17 @@ def move_card_to_list(card_id, list_id, api_key, token):
     response = requests.put(url, params=params)
     response.raise_for_status()
     return response.json()
+
+
+def create_card(list_id, name, desc, api_key, token):
+    url = 'https://api.trello.com/1/cards'
+    params = {
+        'idList': list_id,
+        'name': name,
+        'desc': desc,
+        'key': api_key,
+        'token': token
+    }
+    response = requests.post(url, params=params)
+    response.raise_for_status()
+    return response.json()
