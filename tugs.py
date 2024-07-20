@@ -11,6 +11,7 @@ from trello import LIST_NAME, fetch_cards, get_doing_list_id, get_done_list_id, 
 CONFIG_FILE = 'git_helper_config.json'
 EMOJI_FILE = 'custom_emojis.json'
 WATCH_INTERVAL = 1  # in seconds
+UPSTREAM_CHECK_INTERVAL = 60  # in seconds
 
 input_lock = threading.Lock()
 input_event = threading.Event()
@@ -28,18 +29,19 @@ def save_json_file(filename, data):
         json.dump(data, file)
 
 
-def load_project_name():
+def load_config():
     config = load_json_file(CONFIG_FILE)
-    return config.get('project_name', '')
+    return config.get('project_name', ''), config.get('check_upstream', True)
 
 
-def save_project_name(project_name):
-    save_json_file(CONFIG_FILE, {'project_name': project_name})
+def save_config(project_name, check_upstream):
+    save_json_file(CONFIG_FILE, {'project_name': project_name, 'check_upstream': check_upstream})
 
 
 def set_project_name():
     project_name = safe_input("\033[1;34mEnter the project name:\033[0m ").strip().upper().replace(" ", "_")
-    save_project_name(project_name)
+    check_upstream = load_json_file(CONFIG_FILE).get('check_upstream', True)
+    save_config(project_name, check_upstream)
     return project_name
 
 
@@ -161,9 +163,31 @@ def safe_input(prompt):
         print("\n\033[1;33mDirectory changed. Please re-enter your input.\033[0m")
 
 
+def check_and_pull_upstream():
+    while True:
+        time.sleep(UPSTREAM_CHECK_INTERVAL)
+        with input_lock:
+            try:
+                result = subprocess.run(['git', 'fetch'], capture_output=True, text=True, check=True)
+                if result.stdout or result.stderr:
+                    print("\033[1;34mChecking for updates...\033[0m")
+                    result = subprocess.run(['git', 'status'], capture_output=True, text=True, check=True)
+                    if "Your branch is behind" in result.stdout:
+                        print("\033[1;33mUpdates found. Pulling from upstream...\033[0m")
+                        subprocess.run(['git', 'pull'], check=True)
+                        print("\033[1;32mRepository updated successfully.\033[0m")
+            except subprocess.CalledProcessError as e:
+                print(f"\n\033[1;31mAn error occurred while checking for updates: {e}\033[0m")
+
+
 def main():
-    project_name = load_project_name() or set_project_name()
-    
+    project_name, check_upstream = load_config()
+    if not project_name:
+        project_name = set_project_name()
+
+    if check_upstream:
+        threading.Thread(target=check_and_pull_upstream, daemon=True).start()
+
     while True:
         current_branch = get_current_branch()
         print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
@@ -175,7 +199,8 @@ def main():
         print("3. Select Trello Card and Create Branch")
         print("4. Create a New Trello Ticket")
         print("5. Merge Branch into Main and Move Trello Card to DONE")
-        print("6. Exit")
+        print(f"6. {'Disable' if check_upstream else 'Enable'} Upstream Check")
+        print("7. Exit")
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
         
         if choice == '1':
@@ -190,6 +215,12 @@ def main():
         elif choice == '5':
             merge_branch_to_main(project_name)
         elif choice == '6':
+            check_upstream = not check_upstream
+            save_config(project_name, check_upstream)
+            if check_upstream:
+                threading.Thread(target=check_and_pull_upstream, daemon=True).start()
+            print(f"\033[1;34mUpstream check {'enabled' if check_upstream else 'disabled'}.\033[0m")
+        elif choice == '7':
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
