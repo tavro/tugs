@@ -334,6 +334,10 @@ def merge_branch_to_main(project_name):
 
         subprocess.run(['git', 'checkout', 'main'], check=True)
         subprocess.run(['git', 'merge', current_branch], check=True)
+        subprocess.run(['git', 'push'], check=True)
+
+        subprocess.run(['git', 'branch', '-d', current_branch], check=True)
+        subprocess.run(['git', 'push', 'origin', '--delete', current_branch], check=True)
 
         add_commit_push(project_name)
 
