@@ -22,5 +22,4 @@ Replace 'YOUR_API_KEY', 'YOUR_TOKEN', and 'YOUR_BOARD_ID' with your actual Trell
 
 ## Known Bugs (Fixing Soon)
 
-- Custom emoji selection conflict on option 7
 - Cannot move card from DOING to DONE
