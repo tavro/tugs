@@ -86,10 +86,13 @@ def choose_emoji():
     custom_emojis = load_json_file(EMOJI_FILE)
 
     print("\n\033[1;34mCommit categories:\033[0m")
-    for num, (emoji, category) in {**emojis, **custom_emojis}.items():
+    all_emojis = {**emojis, **custom_emojis}
+    for num, (emoji, category) in all_emojis.items():
         print(f"{num}. {emoji} {category}")
 
-    choice = safe_input("\033[1;34mChoose a commit category by number or enter 7 to include your own emoji:\033[0m ").strip()
+    next_custom_number = max(all_emojis.keys()) + 1
+
+    choice = safe_input(f"\033[1;34mChoose a commit category by number or enter {next_custom_number} to include your own emoji:\033[0m ").strip()
     
     if choice.isdigit():
         choice = int(choice)
@@ -97,10 +100,10 @@ def choose_emoji():
             return emojis[choice]
         elif choice in custom_emojis:
             return custom_emojis[choice]
-        elif choice == 7:
+        elif choice == next_custom_number:
             emoji = safe_input("\033[1;34mEnter your own emoji:\033[0m ").strip()
             category = safe_input("\033[1;34mEnter the category:\033[0m ").strip()
-            custom_emojis[choice] = (emoji, category)
+            custom_emojis[next_custom_number] = (emoji, category)
             save_json_file(EMOJI_FILE, custom_emojis)
             return (emoji, category)
     
