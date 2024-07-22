@@ -183,6 +183,14 @@ def check_and_pull_upstream():
                 print(f"\n\033[1;31mAn error occurred while checking for updates: {e}\033[0m")
 
 
+def pull_standing_branch():
+    try:
+        subprocess.run(['git', 'pull'], check=True)
+        print("\033[1;32mPulled the latest changes from the upstream branch successfully.\033[0m")
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31mAn error occurred while pulling the standing branch: {e}\033[0m")
+
+
 def main():
     project_name, check_upstream = load_config()
     if not project_name:
@@ -203,7 +211,13 @@ def main():
         print("4. Create a New Trello Ticket")
         print("5. Merge Branch into Main and Move Trello Card to DONE")
         print(f"6. {'Disable' if check_upstream else 'Enable'} Upstream Check")
-        print("7. Exit")
+        
+        if not check_upstream:
+            print("7. Pull Standing Branch")
+            print("8. Exit")
+        else:
+            print("7. Exit")
+        
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
         
         if choice == '1':
@@ -223,7 +237,9 @@ def main():
             if check_upstream:
                 threading.Thread(target=check_and_pull_upstream, daemon=True).start()
             print(f"\033[1;34mUpstream check {'enabled' if check_upstream else 'disabled'}.\033[0m")
-        elif choice == '7':
+        elif choice == '7' and not check_upstream:
+            pull_standing_branch()
+        elif choice == '7' and check_upstream or choice == '8' and not check_upstream:
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
