@@ -304,23 +304,32 @@ def create_trello_ticket():
         board_id = secrets.BOARD_ID
         api_key = secrets.API_KEY
         token = secrets.TOKEN
-        
+
+        config = load_json_file(CONFIG_FILE)
+        ticket_nr = config.get('ticket_nr', 1)
+
         lists = get_lists(board_id, api_key, token)
         todo_list = next((lst for lst in lists if lst['name'] == LIST_NAME), None)
-        
+
         if not todo_list:
             print(f"\033[1;31mNo list named '{LIST_NAME}' found on board.\033[0m")
             return
-        
+
         ticket_name = safe_input("\033[1;34mEnter the ticket name:\033[0m ").strip()
         ticket_desc = safe_input("\033[1;34mEnter the ticket description:\033[0m ").strip()
-        
+
         if not ticket_name:
             print("\033[1;31mTicket name cannot be empty.\033[0m")
             return
-        
+
+        ticket_name = f"{ticket_nr}: {ticket_name}"
+
         create_card(todo_list['id'], ticket_name, ticket_desc, api_key, token)
         print(f"\033[1;32mTicket '{ticket_name}' created successfully in the TODO list.\033[0m")
+
+        config['ticket_nr'] = ticket_nr + 1
+        save_json_file(CONFIG_FILE, config)
+
     except Exception as e:
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
