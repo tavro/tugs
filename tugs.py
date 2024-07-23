@@ -233,6 +233,38 @@ def create_branch():
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
 
+def list_and_remove_branch():
+    try:
+        result = subprocess.run(['git', 'branch', '--list'], capture_output=True, text=True, check=True)
+        branches = [branch.strip() for branch in result.stdout.split('\n') if branch.strip()]
+
+        print("\n\033[1;34mAvailable Branches:\033[0m")
+        for idx, branch in enumerate(branches, start=1):
+            print(f"{idx}. {branch}")
+
+        choice = safe_input("\033[1;34mChoose a branch number to delete (or press enter to cancel):\033[0m ").strip()
+
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(branches):
+                branch_to_delete = branches[idx]
+                if branch_to_delete == get_current_branch():
+                    print("\033[1;31mCannot delete the current branch. Please switch to another branch first.\033[0m")
+                    return
+                subprocess.run(['git', 'branch', '-d', branch_to_delete], check=True)
+                subprocess.run(['git', 'push', 'origin', '--delete', branch_to_delete], check=True)
+                print(f"\033[1;32mDeleted branch '{branch_to_delete}' successfully.\033[0m")
+            else:
+                print("\033[1;31mInvalid branch number.\033[0m")
+        elif choice == '':
+            return
+        else:
+            print("\033[1;31mInvalid input.\033[0m")
+
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31mAn error occurred: {e}\033[0m")
+
+
 def main():
     project_name, check_upstream = load_config()
     if not project_name:
@@ -255,12 +287,13 @@ def main():
         print(f"6. {'Disable' if check_upstream else 'Enable'} Upstream Check")
         print("7. Switch Branch")
         print("8. Create a New Branch")
+        print("9. Delete a Branch")
 
         if not check_upstream:
-            print("9. Pull Standing Branch")
-            print("10. Exit")
+            print("10. Pull Standing Branch")
+            print("11. Exit")
         else:
-            print("9. Exit")
+            print("10. Exit")
 
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
 
@@ -285,9 +318,11 @@ def main():
             list_and_switch_branch()
         elif choice == '8':
             create_branch()
-        elif choice == '9' and not check_upstream:
+        elif choice == '9':
+            list_and_remove_branch()
+        elif choice == '10' and not check_upstream:
             pull_standing_branch()
-        elif choice == '9' and check_upstream or choice == '10' and not check_upstream:
+        elif choice == '10' and check_upstream or choice == '11' and not check_upstream:
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
