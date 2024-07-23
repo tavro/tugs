@@ -93,7 +93,7 @@ def choose_emoji():
     next_custom_number = max(all_emojis.keys()) + 1
 
     choice = safe_input(f"\033[1;34mChoose a commit category by number or enter {next_custom_number} to include your own emoji:\033[0m ").strip()
-    
+
     if choice.isdigit():
         choice = int(choice)
         if choice in emojis:
@@ -106,7 +106,7 @@ def choose_emoji():
             custom_emojis[next_custom_number] = (emoji, category)
             save_json_file(EMOJI_FILE, custom_emojis)
             return (emoji, category)
-    
+
     return ("", "")
 
 
@@ -191,6 +191,34 @@ def pull_standing_branch():
         print(f"\033[1;31mAn error occurred while pulling the standing branch: {e}\033[0m")
 
 
+def list_and_switch_branch():
+    try:
+        result = subprocess.run(['git', 'branch', '--all'], capture_output=True, text=True, check=True)
+        branches = [branch.strip() for branch in result.stdout.split('\n') if branch.strip()]
+
+        print("\n\033[1;34mAvailable Branches:\033[0m")
+        for idx, branch in enumerate(branches, start=1):
+            print(f"{idx}. {branch}")
+
+        choice = safe_input("\033[1;34mChoose a branch number to switch to (or press enter to cancel):\033[0m ").strip()
+
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(branches):
+                branch_to_switch = branches[idx].replace('remotes/origin/', '').strip()
+                subprocess.run(['git', 'checkout', branch_to_switch], check=True)
+                print(f"\033[1;32mSwitched to branch '{branch_to_switch}' successfully.\033[0m")
+            else:
+                print("\033[1;31mInvalid branch number.\033[0m")
+        elif choice == '':
+            return
+        else:
+            print("\033[1;31mInvalid input.\033[0m")
+
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31mAn error occurred: {e}\033[0m")
+
+
 def main():
     project_name, check_upstream = load_config()
     if not project_name:
@@ -203,7 +231,7 @@ def main():
         current_branch = get_current_branch()
         print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
         print(f"\033[1;36mCurrent Branch: {current_branch}\033[0m")
-        
+
         print("\n\033[1;34mThe Ultimate Git Script:\033[0m")
         print("1. Add, Commit and Push")
         print("2. Set Project Name")
@@ -211,15 +239,16 @@ def main():
         print("4. Create a New Trello Ticket")
         print("5. Merge Branch into Main and Move Trello Card to DONE")
         print(f"6. {'Disable' if check_upstream else 'Enable'} Upstream Check")
-        
+        print("7. Switch Branch")
+
         if not check_upstream:
-            print("7. Pull Standing Branch")
-            print("8. Exit")
+            print("8. Pull Standing Branch")
+            print("9. Exit")
         else:
-            print("7. Exit")
-        
+            print("8. Exit")
+
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
-        
+
         if choice == '1':
             add_commit_push(project_name)
         elif choice == '2':
@@ -237,9 +266,11 @@ def main():
             if check_upstream:
                 threading.Thread(target=check_and_pull_upstream, daemon=True).start()
             print(f"\033[1;34mUpstream check {'enabled' if check_upstream else 'disabled'}.\033[0m")
-        elif choice == '7' and not check_upstream:
+        elif choice == '7':
+            list_and_switch_branch()
+        elif choice == '8' and not check_upstream:
             pull_standing_branch()
-        elif choice == '7' and check_upstream or choice == '8' and not check_upstream:
+        elif choice == '8' and check_upstream or choice == '9' and not check_upstream:
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
@@ -249,13 +280,13 @@ def main():
 def select_trello_card_and_create_branch(project_name):
     try:
         cards = fetch_cards()
-        
+
         print("\n\033[1;34mBacklog Cards:\033[0m")
         for idx, card in enumerate(cards, start=1):
             print(f"{idx}. {card['name']}")
-        
+
         choice = safe_input("\033[1;34mChoose a card number to create a feature branch (or press enter to cancel):\033[0m ").strip()
-        
+
         if choice.isdigit():
             idx = int(choice) - 1
             if 0 <= idx < len(cards):
@@ -264,7 +295,7 @@ def select_trello_card_and_create_branch(project_name):
                 card_id = card['id']
                 branch_name = create_branch_name(project_name, card_name)
                 create_git_branch(branch_name)
-                
+
                 import secrets
                 board_id = secrets.BOARD_ID
                 api_key = secrets.API_KEY
@@ -278,7 +309,7 @@ def select_trello_card_and_create_branch(project_name):
             return
         else:
             print("\033[1;31mInvalid input.\033[0m")
-    
+
     except Exception as e:
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
