@@ -219,6 +219,20 @@ def list_and_switch_branch():
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
 
+def create_branch():
+    branch_name = safe_input("\033[1;34mEnter the new branch name:\033[0m ").strip()
+    if not branch_name:
+        print("\033[1;31mBranch name cannot be empty.\033[0m")
+        return
+
+    try:
+        subprocess.run(['git', 'checkout', '-b', branch_name], check=True)
+        subprocess.run(['git', 'push', '--set-upstream', 'origin', branch_name], check=True)
+        print(f"\033[1;32mCreated branch '{branch_name}' and pushed to remote successfully.\033[0m")
+    except subprocess.CalledProcessError as e:
+        print(f"\033[1;31mAn error occurred: {e}\033[0m")
+
+
 def main():
     project_name, check_upstream = load_config()
     if not project_name:
@@ -240,12 +254,13 @@ def main():
         print("5. Merge Branch into Main and Move Trello Card to DONE")
         print(f"6. {'Disable' if check_upstream else 'Enable'} Upstream Check")
         print("7. Switch Branch")
+        print("8. Create a New Branch")
 
         if not check_upstream:
-            print("8. Pull Standing Branch")
-            print("9. Exit")
+            print("9. Pull Standing Branch")
+            print("10. Exit")
         else:
-            print("8. Exit")
+            print("9. Exit")
 
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
 
@@ -268,9 +283,11 @@ def main():
             print(f"\033[1;34mUpstream check {'enabled' if check_upstream else 'disabled'}.\033[0m")
         elif choice == '7':
             list_and_switch_branch()
-        elif choice == '8' and not check_upstream:
+        elif choice == '8':
+            create_branch()
+        elif choice == '9' and not check_upstream:
             pull_standing_branch()
-        elif choice == '8' and check_upstream or choice == '9' and not check_upstream:
+        elif choice == '9' and check_upstream or choice == '10' and not check_upstream:
             print("\033[1;34mExiting Git Helper.\033[0m")
             break
         else:
