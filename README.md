@@ -19,7 +19,3 @@ BOARD_ID = 'YOUR_BOARD_ID'
 ```
 
 Replace 'YOUR_API_KEY', 'YOUR_TOKEN', and 'YOUR_BOARD_ID' with your actual Trello API key, token, and board ID.
-
-## Known Bugs (Fixing Soon)
-
-- Cannot move card from DOING to DONE
