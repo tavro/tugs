@@ -441,6 +441,7 @@ def merge_branch_to_main(project_name):
         emoji, category = choose_emoji()
         formatted_commit_message = f"{emoji} {project_name}-{ticket_number}: {commit_message}".strip()
 
+        subprocess.run(['git', 'add', '--all'], check=True)
         subprocess.run(['git', 'commit', '--allow-empty', '-m', formatted_commit_message], check=True)
         subprocess.run(['git', 'push'], check=True)
 
