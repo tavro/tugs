@@ -6,7 +6,7 @@ import os
 import time
 import threading
 
-from trello import LIST_NAME, fetch_cards, get_doing_list_id, get_done_list_id, get_lists, move_card_to_list, create_card
+from trello import LIST_NAME, fetch_cards, fetch_doing_cards, get_doing_list_id, get_done_list_id, get_lists, move_card_to_list, create_card
 
 CONFIG_FILE = 'git_helper_config.json'
 EMOJI_FILE = 'custom_emojis.json'
@@ -431,14 +431,25 @@ def merge_branch_to_main(project_name):
         subprocess.run(['git', 'branch', '-d', current_branch], check=True)
         subprocess.run(['git', 'push', 'origin', '--delete', current_branch], check=True)
 
-        add_commit_push(project_name)
+        ticket_number = current_branch.split('-')[1] if '-' in current_branch else get_last_commit_hash()
+
+        commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
+        if not commit_message:
+            print("\033[1;31mCommit message cannot be empty.\033[0m")
+            return
+
+        emoji, category = choose_emoji()
+        formatted_commit_message = f"{emoji} {project_name}-{ticket_number}: {commit_message}".strip()
+
+        subprocess.run(['git', 'commit', '--allow-empty', '-m', formatted_commit_message], check=True)
+        subprocess.run(['git', 'push'], check=True)
 
         import secrets
         board_id = secrets.BOARD_ID
         api_key = secrets.API_KEY
         token = secrets.TOKEN
 
-        cards = fetch_cards()
+        cards = fetch_doing_cards()
         card = next((card for card in cards if create_branch_name(project_name, card['name']) == current_branch), None)
 
         if card:
@@ -453,7 +464,6 @@ def merge_branch_to_main(project_name):
         print(f"\033[1;31mAn error occurred during the merge process: {e}\033[0m")
     except Exception as e:
         print(f"\033[1;31mAn unexpected error occurred: {e}\033[0m")
-
 
 
 if __name__ == "__main__":

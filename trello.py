@@ -27,17 +27,32 @@ def get_cards(list_id, api_key, token):
     return response.json()
 
 
+def fetch_doing_cards():
+    board_id = secrets.BOARD_ID
+    api_key = secrets.API_KEY
+    token = secrets.TOKEN
+
+    lists = get_lists(board_id, api_key, token)
+    doing_list = next((lst for lst in lists if lst['name'] == 'DOING'), None)
+
+    if not doing_list:
+        raise ValueError(f"No list named '{LIST_NAME}' found on board.")
+
+    cards = get_cards(doing_list['id'], api_key, token)
+    return cards
+
+
 def fetch_cards():
     board_id = secrets.BOARD_ID
     api_key = secrets.API_KEY
     token = secrets.TOKEN
-    
+
     lists = get_lists(board_id, api_key, token)
     todo_list = next((lst for lst in lists if lst['name'] == LIST_NAME), None)
-    
+
     if not todo_list:
         raise ValueError(f"No list named '{LIST_NAME}' found on board.")
-    
+
     cards = get_cards(todo_list['id'], api_key, token)
     return cards
 
