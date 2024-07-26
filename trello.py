@@ -111,3 +111,16 @@ def get_done_list_id(board_id, api_key, token):
     if not done_list:
         raise ValueError("No list named 'DONE' found on board.")
     return done_list['id']
+
+
+def get_cards(list_id, api_key, token):
+    url = f"https://api.trello.com/1/lists/{list_id}/cards"
+    query = {
+        'key': api_key,
+        'token': token
+    }
+
+    response = requests.get(url, params=query)
+    response.raise_for_status()
+
+    return response.json()

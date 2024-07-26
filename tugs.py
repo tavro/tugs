@@ -6,7 +6,7 @@ import os
 import time
 import threading
 
-from trello import LIST_NAME, fetch_cards, fetch_doing_cards, get_doing_list_id, get_done_list_id, get_lists, move_card_to_list, create_card
+from trello import LIST_NAME, fetch_cards, fetch_doing_cards, get_cards, get_doing_list_id, get_done_list_id, get_lists, move_card_to_list, create_card
 
 CONFIG_FILE = 'git_helper_config.json'
 EMOJI_FILE = 'custom_emojis.json'
@@ -389,14 +389,31 @@ def create_trello_ticket():
         token = secrets.TOKEN
 
         config = load_json_file(CONFIG_FILE)
-        ticket_nr = config.get('ticket_nr', 1)
 
         lists = get_lists(board_id, api_key, token)
         todo_list = next((lst for lst in lists if lst['name'] == LIST_NAME), None)
+        doing_list = next((lst for lst in lists if lst['name'].upper() == 'DOING'), None)
+        done_list = next((lst for lst in lists if lst['name'].upper() == 'DONE'), None)
 
-        if not todo_list:
-            print(f"\033[1;31mNo list named '{LIST_NAME}' found on board.\033[0m")
+        if not todo_list or not doing_list or not done_list:
+            print(f"\033[1;31mRequired lists not found on board.\033[0m")
             return
+
+        todo_cards = get_cards(todo_list['id'], api_key, token)
+        doing_cards = get_cards(doing_list['id'], api_key, token)
+        done_cards = get_cards(done_list['id'], api_key, token)
+
+        all_cards = todo_cards + doing_cards + done_cards
+        highest_ticket_nr = 0
+
+        for card in all_cards:
+            try:
+                ticket_nr = int(card['name'].split(':')[0].strip())
+                highest_ticket_nr = max(highest_ticket_nr, ticket_nr)
+            except ValueError:
+                continue
+
+        ticket_nr = highest_ticket_nr + 1
 
         ticket_name = safe_input("\033[1;34mEnter the ticket name:\033[0m ").strip()
         ticket_desc = safe_input("\033[1;34mEnter the ticket description:\033[0m ").strip()
@@ -410,7 +427,7 @@ def create_trello_ticket():
         create_card(todo_list['id'], ticket_name, ticket_desc, api_key, token)
         print(f"\033[1;32mTicket '{ticket_name}' created successfully in the TODO list.\033[0m")
 
-        config['ticket_nr'] = ticket_nr + 1
+        config['ticket_nr'] = ticket_nr
         save_json_file(CONFIG_FILE, config)
 
     except Exception as e:
