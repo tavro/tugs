@@ -275,7 +275,29 @@ def list_and_remove_branch():
         print(f"\033[1;31mAn error occurred: {e}\033[0m")
 
 
+def list_doing_cards():
+    try:
+        doing_cards = fetch_doing_cards()
+
+        print("\n\033[1;34mDOING Cards:\033[0m")
+        for idx, card in enumerate(doing_cards, start=1):
+            print(f"{idx}. {card['name']}")
+
+    except Exception as e:
+        print(f"\033[1;31mAn error occurred: {e}\033[0m")
+
+
+def has_diff():
+    try:
+        result = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
+        return bool(result.stdout.strip())
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking diff: {e}")
+        return False
+
+
 def main():
+    global project_name, check_upstream
     project_name, check_upstream = load_config()
     if not project_name:
         project_name = set_project_name()
@@ -289,54 +311,86 @@ def main():
         print(f"\033[1;36mCurrent Branch: {current_branch}\033[0m")
 
         print("\n\033[1;34mThe Ultimate Git Script:\033[0m")
-        print("1. Add, Commit and Push")
-        print("2. Set Project Name")
-        print("3. Select Trello Card and Create Branch")
-        print("4. Create a New Trello Ticket")
-        print("5. Merge Branch into Main and Move Trello Card to DONE")
-        print(f"6. {'Disable' if check_upstream else 'Enable'} Upstream Check")
-        print("7. Switch Branch")
-        print("8. Create a New Branch")
-        print("9. Delete a Branch")
+
+        options = []
+        actions = {}
+
+        if has_diff():
+            options.append("Change Project Name")
+            actions["Change Project Name"] = change_project_name
+
+        if current_branch == 'main':
+            options.append("Select Trello Card and Create Branch")
+            actions["Select Trello Card and Create Branch"] = lambda: select_trello_card_and_create_branch(project_name)
+
+        options.extend([
+            "Add, Commit and Push",
+            "Create a New Trello Ticket",
+            "Show DOING Trello Cards",
+            f"{'Disable' if check_upstream else 'Enable'} Upstream Check",
+            "Switch Branch",
+            "Create a New Branch"
+        ])
+
+        actions.update({
+            "Add, Commit and Push": lambda: add_commit_push(project_name),
+            "Create a New Trello Ticket": create_trello_ticket,
+            "Show DOING Trello Cards": list_doing_cards,
+            f"{'Disable' if check_upstream else 'Enable'} Upstream Check": toggle_upstream_check,
+            "Switch Branch": list_and_switch_branch,
+            "Create a New Branch": create_branch
+        })
+
+        if current_branch != 'main':
+            options.append("Merge Branch into Main and Move Trello Card to DONE")
+            actions["Merge Branch into Main and Move Trello Card to DONE"] = lambda: merge_branch_to_main(project_name)
+            options.append("Delete a Branch")
+            actions["Delete a Branch"] = list_and_remove_branch
 
         if not check_upstream:
-            print("10. Pull Standing Branch")
-            print("11. Exit")
-        else:
-            print("10. Exit")
+            options.append("Pull Standing Branch")
+            actions["Pull Standing Branch"] = pull_standing_branch
+
+        options.append("Exit")
+        actions["Exit"] = exit_program
+
+        for idx, option in enumerate(options, start=1):
+            print(f"{idx}. {option}")
 
         choice = safe_input("\033[1;34mChoose an option:\033[0m ").strip()
 
-        if choice == '1':
-            add_commit_push(project_name)
-        elif choice == '2':
-            project_name = set_project_name()
-            print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
-        elif choice == '3':
-            select_trello_card_and_create_branch(project_name)
-        elif choice == '4':
-            create_trello_ticket()
-        elif choice == '5':
-            merge_branch_to_main(project_name)
-        elif choice == '6':
-            check_upstream = not check_upstream
-            save_config(project_name, check_upstream)
-            if check_upstream:
-                threading.Thread(target=check_and_pull_upstream, daemon=True).start()
-            print(f"\033[1;34mUpstream check {'enabled' if check_upstream else 'disabled'}.\033[0m")
-        elif choice == '7':
-            list_and_switch_branch()
-        elif choice == '8':
-            create_branch()
-        elif choice == '9':
-            list_and_remove_branch()
-        elif choice == '10' and not check_upstream:
-            pull_standing_branch()
-        elif choice == '10' and check_upstream or choice == '11' and not check_upstream:
-            print("\033[1;34mExiting Git Helper.\033[0m")
-            break
+        if choice.isdigit():
+            choice = int(choice)
+            if 1 <= choice <= len(options):
+                selected_option = options[choice - 1]
+                if selected_option in actions:
+                    actions[selected_option]()
+                else:
+                    print("\033[1;31mInvalid option. Please try again.\033[0m")
+            else:
+                print("\033[1;31mInvalid option. Please try again.\033[0m")
         else:
-            print("\033[1;31mInvalid option. Please try again.\033[0m")
+            print("\033[1;31mInvalid input. Please enter a number.\033[0m")
+
+
+def change_project_name():
+    global project_name
+    project_name = set_project_name()
+    print(f"\n\033[1;36mCurrent Project: {project_name}\033[0m")
+
+
+def toggle_upstream_check():
+    global check_upstream
+    check_upstream = not check_upstream
+    save_config(project_name, check_upstream)
+    if check_upstream:
+        threading.Thread(target=check_and_pull_upstream, daemon=True).start()
+    print(f"\033[1;34mUpstream check {'enabled' if check_upstream else 'disabled'}.\033[0m")
+
+
+def exit_program():
+    print("\033[1;34mExiting Git Helper.\033[0m")
+    exit()
 
 
 def select_trello_card_and_create_branch(project_name):
