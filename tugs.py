@@ -116,7 +116,17 @@ def add_commit_push(project_name):
         commit_message = get_commit_message(project_name)
         emoji, category = choose_emoji()
         full_commit_message = f"{emoji} {commit_message}".strip()
-        subprocess.run(['git', 'commit', '-m', full_commit_message], check=True)
+
+        current_branch = get_current_branch()
+        if current_branch != 'main':
+            fixup_choice = safe_input("\033[1;34mDo you want to create a fixup commit? (yes/no):\033[0m ").strip().lower()
+            if fixup_choice in ['yes', 'y']:
+                subprocess.run(['git', 'commit', '--fixup=HEAD'], check=True)
+            else:
+                subprocess.run(['git', 'commit', '-m', full_commit_message], check=True)
+        else:
+            subprocess.run(['git', 'commit', '-m', full_commit_message], check=True)
+
         subprocess.run(['git', 'push'], check=True)
         print(f"\n\033[1;32mChanges committed and pushed successfully. Category: {category}\033[0m")
     except subprocess.CalledProcessError as e:
@@ -442,12 +452,8 @@ def merge_branch_to_main(project_name):
             return
 
         subprocess.run(['git', 'checkout', 'main'], check=True)
-        subprocess.run(['git', 'merge', current_branch], check=True)
-        subprocess.run(['git', 'push'], check=True)
 
-        subprocess.run(['git', 'branch', '-d', current_branch], check=True)
-        subprocess.run(['git', 'push', 'origin', '--delete', current_branch], check=True)
-
+        subprocess.run(['git', 'merge', '--squash', current_branch], check=True)
         ticket_number = current_branch.split('-')[1] if '-' in current_branch else get_last_commit_hash()
 
         commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
@@ -458,9 +464,11 @@ def merge_branch_to_main(project_name):
         emoji, category = choose_emoji()
         formatted_commit_message = f"{emoji} {project_name}-{ticket_number}: {commit_message}".strip()
 
-        subprocess.run(['git', 'add', '--all'], check=True)
         subprocess.run(['git', 'commit', '--allow-empty', '-m', formatted_commit_message], check=True)
         subprocess.run(['git', 'push'], check=True)
+
+        subprocess.run(['git', 'branch', '-d', current_branch], check=True)
+        subprocess.run(['git', 'push', 'origin', '--delete', current_branch], check=True)
 
         import secrets
         board_id = secrets.BOARD_ID
