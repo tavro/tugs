@@ -5,6 +5,7 @@ import json
 import os
 import time
 import threading
+import google.generativeai as genai
 
 from trello import LIST_NAME, fetch_cards, fetch_doing_cards, get_cards, get_doing_list_id, get_done_list_id, get_lists, move_card_to_list, create_card
 
@@ -67,7 +68,20 @@ def get_last_commit_hash():
 
 def get_commit_message(project_name):
     ticket_number = safe_input("\033[1;34mEnter the ticket number (or press enter to generate a random string):\033[0m ").strip()
-    commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
+    use_generated_message = safe_input("\033[1;34mDo you want to use a generated commit message from the Trello ticket name? (yes/no):\033[0m ").strip().lower()
+    
+    commit_message = ""
+    if use_generated_message in ['yes', 'y']:
+        current_branch = get_current_branch()
+        if current_branch == 'main':
+            print(f"\033[1;32mGenerated commit messages are only available for feature branches\033[0m")
+            commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
+        else:
+            commit_message = generate_commit_message(current_branch)
+            print(f"\033[1;32mGenerated commit message: {commit_message}\033[0m")
+    else:
+        commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
+    
     if not ticket_number:
         ticket_number = get_last_commit_hash()
     formatted_commit_message = f"{project_name}-{ticket_number}: {commit_message}"
@@ -506,11 +520,17 @@ def merge_branch_to_main(project_name):
             return
 
         subprocess.run(['git', 'checkout', 'main'], check=True)
-
         subprocess.run(['git', 'merge', '--squash', current_branch], check=True)
         ticket_number = current_branch.split('-')[1] if '-' in current_branch else get_last_commit_hash()
 
-        commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
+        use_generated_message = safe_input("\033[1;34mDo you want to use a generated commit message from the Trello ticket name? (yes/no):\033[0m ").strip().lower()
+        
+        if use_generated_message in ['yes', 'y']:
+            commit_message = generate_commit_message(current_branch)
+            print(f"\033[1;32mGenerated commit message: {commit_message}\033[0m")
+        else:
+            commit_message = safe_input("\033[1;34mEnter the commit message:\033[0m ").strip()
+        
         if not commit_message:
             print("\033[1;31mCommit message cannot be empty.\033[0m")
             return
@@ -520,7 +540,6 @@ def merge_branch_to_main(project_name):
 
         subprocess.run(['git', 'commit', '--allow-empty', '-m', formatted_commit_message], check=True)
         subprocess.run(['git', 'push'], check=True)
-
         subprocess.run(['git', 'branch', '-d', current_branch], check=True)
         subprocess.run(['git', 'push', 'origin', '--delete', current_branch], check=True)
 
@@ -544,6 +563,17 @@ def merge_branch_to_main(project_name):
         print(f"\033[1;31mAn error occurred during the merge process: {e}\033[0m")
     except Exception as e:
         print(f"\033[1;31mAn unexpected error occurred: {e}\033[0m")
+
+
+def generate_commit_message(ticket_name):
+    import secrets
+    GEMINI_API_KEY = secrets.GEMINI_API_KEY
+
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    response = model.generate_content(f"Generate a git commit message for the ticket with the following name: {ticket_name}")
+
+    return response.text
 
 
 if __name__ == "__main__":
